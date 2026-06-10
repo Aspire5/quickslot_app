@@ -54,34 +54,31 @@ class VenueDetailsController extends GetxController {
   }
 
   // Load slots for venue and date
-  Future<void> loadSlots() async {
+  Future<void> loadSlots({bool isSilent = false}) async {
     if (venue.value == null) return;
 
-    isLoading.value = true;
-    errorMessage.value = null;
+    if (!isSilent) {
+      isLoading.value = true;
+      errorMessage.value = null;
+    }
 
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
 
     try {
       final list = await _venueRepository.getVenueSlots(venue.value!.id, dateStr);
-      slots.assignAll(list);
-      
-      // Update Rx mappings
-      for (final slot in list) {
-        if (slotRxMap.containsKey(slot.id)) {
-          slotRxMap[slot.id]!.value = slot;
+      _updateSlotsList(list);
+    } catch (e) {
+      if (!isSilent) {
+        if (e is NoInternetException) {
+          errorMessage.value = e.message;
         } else {
-          slotRxMap[slot.id] = slot.obs;
+          errorMessage.value = e.toString().replaceAll('Exception: ', '');
         }
       }
-    } catch (e) {
-      if (e is NoInternetException) {
-        errorMessage.value = e.message;
-      } else {
-        errorMessage.value = e.toString().replaceAll('Exception: ', '');
-      }
     } finally {
-      isLoading.value = false;
+      if (!isSilent) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -113,8 +110,8 @@ class VenueDetailsController extends GetxController {
         // Safe fallback for testing environment where DashboardController might not be initialized
       }
 
-      // Reload slots to show new booking state
-      await loadSlots();
+      // Reload slots silently to show new booking state without layout rebuild
+      await loadSlots(isSilent: true);
     } catch (e) {
       Get.back(); // close confirmation bottom sheet on error
       final errorMsg = e.toString();
@@ -167,32 +164,38 @@ class VenueDetailsController extends GetxController {
 
     try {
       final list = await _venueRepository.getVenueSlots(venue.value!.id, dateStr);
-      
-      // Check if anything has changed
-      bool hasChanges = false;
-      if (list.length != slots.length) {
-        hasChanges = true;
-      } else {
-        for (int i = 0; i < list.length; i++) {
-          if (!_areSlotsEqual(list[i], slots[i])) {
-            hasChanges = true;
-            break;
-          }
-        }
-      }
-
-      if (hasChanges) {
-        slots.assignAll(list);
-        for (final slot in list) {
-          if (slotRxMap.containsKey(slot.id)) {
-            slotRxMap[slot.id]!.value = slot;
-          } else {
-            slotRxMap[slot.id] = slot.obs;
-          }
-        }
-      }
+      _updateSlotsList(list);
     } catch (_) {
       // Silently ignore polling errors to keep background updates smooth
+    }
+  }
+
+  void _updateSlotsList(List<SlotModel> newList) {
+    // Check if the structure (IDs and length) is the same
+    bool structureMatches = slots.length == newList.length;
+    if (structureMatches) {
+      for (int i = 0; i < slots.length; i++) {
+        if (slots[i].id != newList[i].id) {
+          structureMatches = false;
+          break;
+        }
+      }
+    }
+
+    if (!structureMatches) {
+      // Structure changed or initial load, assign all to rebuild grid structure
+      slots.assignAll(newList);
+    }
+
+    // Update individual reactive slots
+    for (final slot in newList) {
+      if (slotRxMap.containsKey(slot.id)) {
+        if (!_areSlotsEqual(slotRxMap[slot.id]!.value, slot)) {
+          slotRxMap[slot.id]!.value = slot;
+        }
+      } else {
+        slotRxMap[slot.id] = slot.obs;
+      }
     }
   }
 

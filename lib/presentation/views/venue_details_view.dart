@@ -100,7 +100,9 @@ class VenueDetailsView extends GetView<VenueDetailsController> {
                       ),
                     ),
                     Obx(() {
-                      final count = controller.slots.where((s) => !s.isBooked).length;
+                      final count = controller.slots
+                          .where((s) => !(controller.slotRxMap[s.id]?.value.isBooked ?? s.isBooked))
+                          .length;
                       return Text(
                         '$count Free',
                         style: TextStyle(
