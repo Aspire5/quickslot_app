@@ -1,111 +1,79 @@
-# QuickSlot — Sports Slots Booking System
+# QuickSlot (Frontend)
 
-A production-grade slot booking mobile application for sports venues (turfs, badminton courts, etc.) integrated with a concurrency-safe Node.js Express server. Built using **GetX**, **Dio**, **ScreenUtil**, and **Prisma ORM**.
+A modern, high-performance slot booking mobile application built using Flutter. It connects to the QuickSlot Node.js/Express backend to manage real-time court and venue reservations.
+
+The codebase implements a clean architectural pattern with GetX for state management, offering instant offline-first rendering, background synchronization, and efficient widget-level rebuilds.
+
+## 🛠 Tech Stack
+
+- **Framework:** Flutter (Dart)
+- **State Management:** GetX
+- **Networking:** Dio (packaged with custom exception mapping and error handling)
+- **Local Persistence:** SharedPreferences
+- **Layout & Sizing:** Flutter ScreenUtil (responsive, pixel-perfect proportions)
 
 ---
 
-## 🚀 Setup & Execution Guide
+## ⚡ Key Features
 
-### 1. Database & Backend Setup
-1. Navigate to the server folder:
-   ```bash
-   cd quickslot_server
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Set up your `.env` variables (e.g. `DATABASE_URL` pointing to your PostgreSQL instance).
-4. Run migrations and seed the database with mock courts/users:
-   ```bash
-   npx prisma migrate dev
-   # The seed script will run automatically, creating 5 venues, 3 users, and 560 slots
-   ```
-5. Start the backend:
-   ```bash
-   npm run dev
-   # Server listens on port 5001 by default
-   ```
+- **Venue Catalog & Scheduler:** Browse courts and turfs. View a 7-day horizontal date slider to quickly check day-by-day court slot schedules.
+- **Real-Time Polling & Widget-Level Updates:** The app polls the backend every 5 seconds for slot status updates. To avoid layout flickering and heavy widget tree rebuilds, a custom diffing mechanism compares the slot data and updates only the reactive `Rx` slot instances whose status changed. Only the affected slot widget repaints.
+- **Past Slot Handling:** Auto-detects slots whose start times have passed. They are disabled, styled as "Passed", and automatically excluded from the "Available" slots count in the header.
+- **Offline-First Rendering:** The "My Bookings" list loads instantly from local storage cache. A background update then fetches the latest state from the API. A thin progress bar at the top indicates active background syncs without blocking the user.
+- **Cancellation Policy:** A strict 6-hour cancellation window is enforced on the frontend. Bookings starting within 6 hours have their cancel action disabled with clear policy details shown on an info dialog.
+- **Robust Error & Concurrency Handling:** Maps network connection/timeout errors to user-friendly messages rather than raw API trace errors. Handles DB-level concurrency conflicts (e.g. if two users try booking the same slot simultaneously) by prompting the user and auto-refreshing the slot grid.
 
-### 2. Flutter Mobile Setup
-1. Ensure your Flutter environment is ready:
+---
+
+## 📁 Project Architecture
+
+The client code follows a Clean Architecture approach:
+
+- **Domain Layer (`lib/domain`)**: Contains immutable core models (`SlotModel`, `VenueModel`, etc.) and abstract repository interfaces. Contains zero dependencies on Flutter or GetX.
+- **Data Layer (`lib/data`)**: Houses concrete repository implementations, API services, local Storage cache drivers, and the custom Dio client wrapper.
+- **Presentation Layer (`lib/presentation`)**: Contains views (`GetView`), bindings (`Bindings` to manage dependency injection), and controllers (`GetxController` representing the UI state machine).
+- **Shared Layer (`lib/shared`)**: General-purpose widgets (loaders, buttons, confirm modals).
+
+---
+
+## 🚀 Getting Started
+
+1. **Prerequisites**: Ensure Flutter is installed and configured.
    ```bash
    flutter doctor
    ```
-2. Navigate to the root directory of the Flutter app, get dependencies, and run:
+2. **Install dependencies**:
    ```bash
    flutter pub get
+   ```
+3. **Configure API Endpoint**:
+   The base URL defaults to the production endpoint in `lib/core/constants/api_endpoints.dart`. If running the backend locally:
+   - Change the `baseUrl` in that file to point to your local machine (e.g. `http://localhost:5001/api/v1` or your local IP if running on a physical device).
+4. **Run the App**:
+   ```bash
    flutter run
    ```
 
 ---
 
-## 🛠️ Tech Stack & Architecture Note
+## 🔧 Release & Build Optimizations
 
-The mobile application follows **Clean Architecture** patterns:
-- **Presentation**: View layout widgets (GetView) referencing reactive controllers and page bindings. Uses `flutter_screenutil` for responsive, pixel-perfect sizing.
-- **Domain**: Pure business rules containing abstract interface repositories and strongly-typed models (`UserModel`, `VenueModel`, `SlotModel`, `BookingModel`).
-- **Data**: Centralized networking services (`DioClient` and `ApiService`) and implementation repositories managing local persistent cache storing.
-- **Shared**: Reusable loaders, confirmation dialogs, and styled action button components.
-
-### Diagram Reference (Whiteboard Concept)
-```
-[ UI Screens: Login / Dashboard Grid / Venue Details ]
-                       │ (reactive bindings)
-            [ Controllers / Getx ]
-                       │
-       [ Domain Repository Interface ]
-                       │ (data mapping)
-         [ Data Repositories Impl ]
-             /                   \
-   [ Api Service / Dio ]   [ Local storage cache / SharedPreferences ]
-             │
-     [ Node.js server ]
-```
-
----
-
-## 📦 Release & Size Optimization
-
-Optimizations are applied to minimize installation size and speed up compiling:
-
-### 1. Android Configs (`android/app/build.gradle.kts`)
-- Enabled **R8 Minification** (`isMinifyEnabled = true`): Shrinks code by removing unused classes and fields.
-- Enabled **Resource Shrinking** (`isShrinkResources = true`): Removes unused resources from the final package bundle.
-
-### 2. Compilation Commands
-* **Android (Splitting APK per CPU architecture)**:
-  Instead of compiling a heavy "fat" APK, compile individual optimized APKs using:
+For production releases, the app size has been optimized via the following configs:
+- **R8 Minification (`android/app/build.gradle.kts`)**: Enabled `isMinifyEnabled` and `isShrinkResources` to tree-shake unused Java/Kotlin code and prune unused assets.
+- **Split ABI Builds**:
+  Instead of building a fat binary, generate optimized APKs per architecture to reduce download size:
   ```bash
   flutter build apk --split-per-abi
-  # Generates separate small APKs for armeabi-v7a, arm64-v8a, and x86_64
   ```
-  Or compile a Google Play-compliant **Android App Bundle (AAB)**:
+  For Google Play, generate an Android App Bundle (AAB):
   ```bash
   flutter build appbundle --release
   ```
-* **iOS**:
-  Strip native debugging symbols and package into IPA:
-  ```bash
-  flutter build ipa --release
-  ```
 
 ---
 
-## ✂️ What was Cut & Why
-1. **Lightweight Auth**: Handled authentication using simple username/password requests and simple token verification headers instead of complex OAuth flow to optimize development time.
-2. **Real-time Polling**: Decided to skip active slot polling in this iteration to reduce network overhead and battery drain. The grid reloads directly whenever date selection changes, a booking confirmation completes, or a concurrency booking conflict is caught.
-3. **Unit Tests**: Widget/unit testing was skipped for this phase to focus resources on a fully functioning local end-to-end user experience.
+## 🔮 What I'd Do with More Time
 
----
-
-## 🔮 What We'd Do with One More Day
-1. **Websockets Integration**: Push instant booking state updates to all active phone screens to prevent overlapping slot selections before a user hits confirm.
-2. **Advanced Slot Filters**: Filter courts by slot times (Morning, Afternoon, Evening) and sport category (Tennis vs Soccer).
-3. **Map Integrations**: Embed interactive Google Maps widgets on Venue cards for quick driving directions.
-
----
-
-## 🤖 AI Usage Note
-- **What AI was used for**: Generating the boilerplate clean architecture directories, setting up base Dio wrappers, and scaffolding initial controllers/views.
-- **AI correction made**: Caught and resolved a few compiler warnings regarding non-nullable casts in parsing JSON lists from `shared_preferences`, and correctly ordered the `dart:io` and `get` imports at the top of the details controller rather than inline.
+1. **WebSockets Integration:** Instead of using 5-second HTTP polling, integrate WebSockets (using `socket.io-client` or similar) to broadcast instant status flips globally. This would eliminate network polling overhead and ensure true real-time synchronization.
+2. **Backend-Side Slot Validation:** Currently, the backend query returns all slots for a 24-hour window, forcing the frontend to filter out and mark past slots. Moving this logic to the backend would reduce payload size and clean up client-side checks.
+3. **Comprehensive Integration Testing:** Write automated integration tests mocking multiple clients booking the same slot simultaneously to verify conflict resolution and rollback flows.
