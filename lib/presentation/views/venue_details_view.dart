@@ -479,10 +479,7 @@ class VenueDetailsView extends GetView<VenueDetailsController> {
                 }
                 return CustomButton(
                   text: 'Book Slot Now',
-                  onPressed: () {
-                    Get.back(); // close bottom sheet
-                    controller.bookSlot(slot); // trigger book
-                  },
+                  onPressed: () => controller.bookSlot(slot),
                 );
               }),
             ],

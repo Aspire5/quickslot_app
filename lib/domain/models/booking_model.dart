@@ -18,9 +18,9 @@ class BookingModel {
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
       id: json['id'] as String? ?? '',
-      userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
-      slotId: json['slotId'] as String? ?? json['slot_id'] as String? ?? '',
-      createdAt: DateTime.parse(json['createdAt'] as String? ?? json['created_at'] as String? ?? DateTime.now().toIso8601String()).toLocal(),
+      userId: json['userId'] as String? ?? '',
+      slotId: json['slotId'] as String? ?? '',
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       slot: json['slot'] != null ? SlotModel.fromJson(json['slot'] as Map<String, dynamic>) : null,
     );
   }

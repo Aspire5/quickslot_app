@@ -8,6 +8,7 @@ import '../../domain/repositories/venue_repository.dart';
 import '../../domain/repositories/booking_repository.dart';
 import '../../shared/dialogs/custom_dialog.dart';
 import '../../core/network/dio_client.dart';
+import 'dashboard_controller.dart';
 
 class VenueDetailsController extends GetxController {
   final VenueRepository _venueRepository;
@@ -74,19 +75,30 @@ class VenueDetailsController extends GetxController {
 
   // Book a slot
   Future<void> bookSlot(SlotModel slot) async {
+    if (isBooking.value) return; // double-click protection
     isBooking.value = true;
     try {
       await _bookingRepository.createBooking(slot.id);
       
+      Get.back(); // close confirmation bottom sheet on success
+
       // Show Success Snack
       CustomDialog.showSnackBar(
         title: 'Booking Confirmed!',
         message: 'You have successfully booked this court slot.',
       );
 
+      // Set dirty flag to reload bookings list on next visit to Dashboard tab
+      try {
+        Get.find<DashboardController>().setNeedsRefresh();
+      } catch (_) {
+        // Safe fallback for testing environment where DashboardController might not be initialized
+      }
+
       // Reload slots to show new booking state
       await loadSlots();
     } catch (e) {
+      Get.back(); // close confirmation bottom sheet on error
       final errorMsg = e.toString();
       if (errorMsg.contains('CONFLICT')) {
         // Concurrency double booking conflict

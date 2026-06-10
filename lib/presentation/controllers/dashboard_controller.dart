@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Center, CircularProgressIndicator;
 import 'package:get/get.dart';
 import '../../domain/models/venue_model.dart';
 import '../../domain/models/booking_model.dart';
@@ -22,6 +23,11 @@ class DashboardController extends GetxController {
 
   // Tab Indexing
   final RxInt currentIndex = 0.obs;
+  bool _needsRefresh = false;
+
+  void setNeedsRefresh() {
+    _needsRefresh = true;
+  }
 
   // Active User Profile
   final Rxn<UserModel> user = Rxn<UserModel>();
@@ -78,7 +84,7 @@ class DashboardController extends GetxController {
   Future<void> fetchBookings({bool forceRefresh = false}) async {
     if (user.value == null) return;
     
-    isBookingsLoading.value = bookings.isEmpty;
+    isBookingsLoading.value = true;
     bookingsError.value = null;
 
     // Load and show cached bookings immediately if they exist
@@ -122,22 +128,51 @@ class DashboardController extends GetxController {
   }
 
   // Cancel Booking
-  Future<void> cancelBooking(String bookingId) async {
+  Future<void> cancelBooking(BookingModel booking) async {
+    final slot = booking.slot;
+    if (slot != null) {
+      final timeUntilStart = slot.startAt.difference(DateTime.now());
+      if (timeUntilStart.inHours < 6) {
+        CustomDialog.showSnackBar(
+          title: 'Cannot Cancel',
+          message: 'Bookings can only be cancelled at least 6 hours before the start time.',
+          isError: true,
+        );
+        return;
+      }
+    }
+
     CustomDialog.showConfirmDialog(
       title: 'Cancel Booking',
       message: 'Are you sure you want to cancel this booking? This action cannot be undone.',
       confirmText: 'Yes, Cancel',
       onConfirm: () async {
-        isBookingsLoading.value = true;
+        // Allow confirm dialog to pop cleanly first
+        await Future.delayed(const Duration(milliseconds: 200));
+
+        // Show non-dismissible loading overlay
+        Get.dialog(
+          const Center(
+            child: CircularProgressIndicator(),
+          ),
+          barrierDismissible: false,
+        );
+
         try {
-          await _bookingRepository.cancelBooking(bookingId);
+          await _bookingRepository.cancelBooking(booking.id);
+          
+          // Refresh bookings list forcing network reload
+          await fetchBookings(forceRefresh: true);
+          
+          Get.back(); // Dismiss loading dialog
+
           CustomDialog.showSnackBar(
             title: 'Booking Cancelled',
             message: 'Your slot reservation was successfully cancelled.',
           );
-          // Refresh bookings list forcing network reload
-          await fetchBookings(forceRefresh: true);
         } catch (e) {
+          Get.back(); // Dismiss loading dialog
+          
           String errorMsg;
           if (e is NoInternetException) {
             errorMsg = e.message;
@@ -149,8 +184,6 @@ class DashboardController extends GetxController {
             message: errorMsg,
             isError: true,
           );
-        } finally {
-          isBookingsLoading.value = false;
         }
       },
     );
@@ -162,7 +195,10 @@ class DashboardController extends GetxController {
     if (index == 0) {
       fetchVenues();
     } else if (index == 1) {
-      fetchBookings();
+      if (_needsRefresh || bookings.isEmpty) {
+        fetchBookings(forceRefresh: _needsRefresh);
+        _needsRefresh = false;
+      }
     }
   }
 

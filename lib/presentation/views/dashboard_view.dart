@@ -9,6 +9,7 @@ import '../../shared/widgets/custom_button.dart';
 import '../../shared/loaders/custom_loader.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../routes/app_routes.dart';
+import '../../shared/dialogs/custom_dialog.dart';
 
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});
@@ -267,6 +268,18 @@ class DashboardView extends GetView<DashboardController> {
             return const SizedBox.shrink();
           }),
 
+          // Loading Progress Indicator for background refresh
+          Obx(() {
+            if (controller.isBookingsLoading.value && controller.bookings.isNotEmpty) {
+              return const LinearProgressIndicator(
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                minHeight: 3,
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => controller.fetchBookings(forceRefresh: true),
@@ -323,6 +336,7 @@ class DashboardView extends GetView<DashboardController> {
         : 'Unknown Time';
 
     final isExpired = slot?.startAt.isBefore(DateTime.now()) ?? false;
+    final isCancellable = slot != null && slot.startAt.difference(DateTime.now()).inHours >= 6;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -373,6 +387,20 @@ class DashboardView extends GetView<DashboardController> {
                     ],
                   ),
                 ),
+                IconButton(
+                  icon: Icon(Icons.info_outline_rounded, size: 20.r, color: Colors.grey),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => Get.defaultDialog(
+                    title: 'Cancellation Policy',
+                    middleText: 'Bookings must be cancelled at least 6 hours before the slot start time. Past this threshold, cancellation is locked.',
+                    textConfirm: 'Got it',
+                    confirmTextColor: Colors.white,
+                    buttonColor: AppColors.primary,
+                    onConfirm: () => Get.back(),
+                  ),
+                ),
+                SizedBox(width: 8.w),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                   decoration: BoxDecoration(
@@ -433,15 +461,26 @@ class DashboardView extends GetView<DashboardController> {
                 height: 38.h,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.error),
+                    side: BorderSide(
+                      color: isCancellable ? AppColors.error : Colors.grey.withValues(alpha: 0.3),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10.r),
                     ),
-                    foregroundColor: AppColors.error,
+                    foregroundColor: isCancellable ? AppColors.error : Colors.grey,
                   ),
-                  onPressed: () => controller.cancelBooking(booking.id),
+                  onPressed: isCancellable
+                      ? () => controller.cancelBooking(booking)
+                      : () {
+                          // Fallback warning on blocked press
+                          CustomDialog.showSnackBar(
+                            title: 'Cannot Cancel',
+                            message: 'Bookings can only be cancelled at least 6 hours before the start time.',
+                            isError: true,
+                          );
+                        },
                   child: Text(
-                    'Cancel Booking',
+                    isCancellable ? 'Cancel Booking' : 'Cancellation Locked (under 6h)',
                     style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.bold),
                   ),
                 ),
