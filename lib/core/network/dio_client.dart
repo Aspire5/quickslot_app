@@ -72,7 +72,49 @@ class DioClient {
   }
 
   Exception _handleError(DioException error) {
-    // Return or map to domain-specific custom exceptions
-    return error;
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return const NoInternetException();
+    }
+    
+    final errObj = error.error;
+    if (errObj != null && errObj.toString().contains('SocketException')) {
+      return const NoInternetException();
+    }
+
+    final response = error.response;
+    final statusCode = response?.statusCode;
+
+    if (response != null && response.data is Map<String, dynamic>) {
+      final data = response.data as Map<String, dynamic>;
+      final msg = data['message'] as String?;
+      if (msg != null) {
+        return ApiException(msg, statusCode: statusCode);
+      }
+    }
+
+    return ApiException(
+      error.message ?? 'An unexpected error occurred. Please try again.',
+      statusCode: statusCode,
+    );
   }
+}
+
+class NoInternetException implements Exception {
+  final String message;
+  const NoInternetException([this.message = 'No Internet connection. Please check your network and try again.']);
+  
+  @override
+  String toString() => message;
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  const ApiException(this.message, {this.statusCode});
+  
+  @override
+  String toString() => message;
 }

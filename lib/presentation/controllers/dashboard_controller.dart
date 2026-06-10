@@ -7,6 +7,7 @@ import '../../domain/repositories/booking_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../shared/dialogs/custom_dialog.dart';
+import '../../core/network/dio_client.dart';
 
 class DashboardController extends GetxController {
   final VenueRepository _venueRepository;
@@ -63,7 +64,11 @@ class DashboardController extends GetxController {
       final list = await _venueRepository.getVenues();
       venues.assignAll(list);
     } catch (e) {
-      venuesError.value = e.toString().replaceAll('Exception: ', '');
+      if (e is NoInternetException) {
+        venuesError.value = e.message;
+      } else {
+        venuesError.value = e.toString().replaceAll('Exception: ', '');
+      }
     } finally {
       isVenuesLoading.value = false;
     }
@@ -73,38 +78,43 @@ class DashboardController extends GetxController {
   Future<void> fetchBookings({bool forceRefresh = false}) async {
     if (user.value == null) return;
     
-    isBookingsLoading.value = true;
+    isBookingsLoading.value = bookings.isEmpty;
     bookingsError.value = null;
-    isOfflineMode.value = false;
+
+    // Load and show cached bookings immediately if they exist
+    final cached = await _bookingRepository.getCachedBookings();
+    if (cached != null) {
+      bookings.assignAll(cached);
+    }
 
     try {
-      // Check cached bookings first to see if offline mode fallback occurred
       final list = await _bookingRepository.getUserBookings(
         user.value!.id,
-        forceRefresh: forceRefresh,
+        forceRefresh: forceRefresh || cached == null,
       );
       bookings.assignAll(list);
-
-      // Verify if loaded cache only due to network failure
-      final cachedOnly = await _bookingRepository.getCachedBookings();
-      if (list.length == cachedOnly.length && forceRefresh == false) {
-        // If we loaded cached bookings, check if server is unreachable
-        // to show offline indicator banner
-        isOfflineMode.value = true;
-      }
+      isOfflineMode.value = false;
     } catch (e) {
-      // Fetch failed, try to load offline cache
-      final cached = await _bookingRepository.getCachedBookings();
-      if (cached.isNotEmpty) {
-        bookings.assignAll(cached);
+      // Fetch failed, check if we can fall back to the cache
+      final fallbackCached = await _bookingRepository.getCachedBookings();
+      if (fallbackCached != null) {
+        bookings.assignAll(fallbackCached);
         isOfflineMode.value = true;
-        CustomDialog.showSnackBar(
-          title: 'Offline Mode',
-          message: 'Displaying cached bookings. Some changes may not sync.',
-          isError: true,
-        );
+        // If the user triggered a force refresh manually, show a helpful message
+        if (forceRefresh) {
+          CustomDialog.showSnackBar(
+            title: 'Offline Mode',
+            message: 'Could not refresh. Displaying cached bookings.',
+            isError: true,
+          );
+        }
       } else {
-        bookingsError.value = e.toString().replaceAll('Exception: ', '');
+        // No cache exists at all
+        if (e is NoInternetException) {
+          bookingsError.value = e.message;
+        } else {
+          bookingsError.value = e.toString().replaceAll('Exception: ', '');
+        }
       }
     } finally {
       isBookingsLoading.value = false;
@@ -128,9 +138,15 @@ class DashboardController extends GetxController {
           // Refresh bookings list forcing network reload
           await fetchBookings(forceRefresh: true);
         } catch (e) {
+          String errorMsg;
+          if (e is NoInternetException) {
+            errorMsg = e.message;
+          } else {
+            errorMsg = e.toString().replaceAll('Exception: ', '');
+          }
           CustomDialog.showSnackBar(
             title: 'Cancellation Failed',
-            message: e.toString().replaceAll('Exception: ', ''),
+            message: errorMsg,
             isError: true,
           );
         } finally {

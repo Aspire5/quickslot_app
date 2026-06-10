@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../routes/app_routes.dart';
+import '../../core/network/dio_client.dart';
 
 class AuthController extends GetxController {
   final AuthRepository _authRepository;
@@ -38,7 +39,11 @@ class AuthController extends GetxController {
       await _authRepository.login(username, password);
       Get.offAllNamed(Routes.dashboard);
     } catch (e) {
-      errorMessage.value = e.toString().replaceAll('Exception: ', '');
+      if (e is NoInternetException) {
+        errorMessage.value = e.message;
+      } else {
+        errorMessage.value = e.toString().replaceAll('Exception: ', '');
+      }
     } finally {
       isLoading.value = false;
     }

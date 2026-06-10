@@ -7,6 +7,7 @@ import '../../domain/models/slot_model.dart';
 import '../../domain/repositories/venue_repository.dart';
 import '../../domain/repositories/booking_repository.dart';
 import '../../shared/dialogs/custom_dialog.dart';
+import '../../core/network/dio_client.dart';
 
 class VenueDetailsController extends GetxController {
   final VenueRepository _venueRepository;
@@ -55,7 +56,11 @@ class VenueDetailsController extends GetxController {
       final list = await _venueRepository.getVenueSlots(venue.value!.id, dateStr);
       slots.assignAll(list);
     } catch (e) {
-      errorMessage.value = e.toString().replaceAll('Exception: ', '');
+      if (e is NoInternetException) {
+        errorMessage.value = e.message;
+      } else {
+        errorMessage.value = e.toString().replaceAll('Exception: ', '');
+      }
     } finally {
       isLoading.value = false;
     }
@@ -97,9 +102,15 @@ class VenueDetailsController extends GetxController {
           },
         );
       } else {
+        String finalMsg;
+        if (e is NoInternetException) {
+          finalMsg = e.message;
+        } else {
+          finalMsg = errorMsg.replaceAll('Exception: ', '');
+        }
         CustomDialog.showSnackBar(
           title: 'Booking Failed',
-          message: errorMsg.replaceAll('Exception: ', ''),
+          message: finalMsg,
           isError: true,
         );
       }
