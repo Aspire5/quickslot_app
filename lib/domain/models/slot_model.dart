@@ -28,8 +28,8 @@ class SlotModel {
     return SlotModel(
       id: json['id'] as String? ?? '',
       venueId: json['venueId'] as String? ?? json['venue_id'] as String? ?? '',
-      startAt: DateTime.parse(json['startAt'] as String? ?? json['start_at'] as String ?? DateTime.now().toIso8601String()).toLocal(),
-      endAt: DateTime.parse(json['endAt'] as String? ?? json['end_at'] as String ?? DateTime.now().toIso8601String()).toLocal(),
+      startAt: DateTime.parse(json['startAt'] as String? ?? json['start_at'] as String? ?? DateTime.now().toIso8601String()).toLocal(),
+      endAt: DateTime.parse(json['endAt'] as String? ?? json['end_at'] as String? ?? DateTime.now().toIso8601String()).toLocal(),
       isBooked: isBookedVal,
       bookingId: booking?['id'] as String?,
       bookingUserId: booking?['userId'] as String? ?? booking?['user_id'] as String?,
