@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'core/theme/app_theme.dart';
+import 'data/services/storage_service.dart';
 import 'routes/app_pages.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageService.instance.init();
   runApp(const MyApp());
 }
 

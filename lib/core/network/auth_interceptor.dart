@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:get/get.dart' as getx;
+import '../../data/services/storage_service.dart';
+import '../../routes/app_routes.dart';
 
 class AuthInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    // TODO: Fetch the authentication token from local storage
-    const String? token = null;
+    final String? token = StorageService.instance.getToken();
 
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -16,7 +18,12 @@ class AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (err.response?.statusCode == 401) {
-      // TODO: Handle session expiration (e.g., logout user or refresh token)
+      // Clear local auth session
+      StorageService.instance.clearAuth();
+      // Redirect to login screen
+      if (getx.Get.currentRoute != Routes.login) {
+        getx.Get.offAllNamed(Routes.login);
+      }
     }
     super.onError(err, handler);
   }
