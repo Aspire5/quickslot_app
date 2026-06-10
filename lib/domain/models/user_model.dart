@@ -1,27 +1,33 @@
 class UserModel {
-  final String id;
-  final String name;
-  final String email;
+   final String id;
+   final String firstName;
+   final String? lastName;
+   final String username;
 
-  const UserModel({
-    required this.id,
-    required this.name,
-    required this.email,
-  });
+   const UserModel({
+     required this.id,
+     required this.firstName,
+     this.lastName,
+     required this.username,
+   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
-    return UserModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-    );
-  }
+   String get fullName => '$firstName ${lastName ?? ""}'.trim();
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-    };
-  }
-}
+   factory UserModel.fromJson(Map<String, dynamic> json) {
+     return UserModel(
+       id: json['id'] as String? ?? '',
+       firstName: json['firstName'] as String? ?? json['first_name'] as String? ?? '',
+       lastName: json['lastName'] as String? ?? json['last_name'] as String?,
+       username: json['username'] as String? ?? '',
+     );
+   }
+
+   Map<String, dynamic> toJson() {
+     return {
+       'id': id,
+       'firstName': firstName,
+       'lastName': lastName,
+       'username': username,
+     };
+   }
+ }
