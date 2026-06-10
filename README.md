@@ -4,6 +4,8 @@ A modern, high-performance slot booking mobile application built using Flutter. 
 
 The codebase implements a clean architectural pattern with GetX for state management, offering instant offline-first rendering, background synchronization, and efficient widget-level rebuilds.
 
+---
+
 ## 🛠 Tech Stack
 
 - **Framework:** Flutter (Dart)
@@ -25,14 +27,49 @@ The codebase implements a clean architectural pattern with GetX for state manage
 
 ---
 
-## 📁 Project Architecture
+## 📁 Project Architecture & Structure
 
-The client code follows a Clean Architecture approach:
+The codebase is organized following **Clean Architecture** patterns to enforce strict separation of concerns, testability, and mockability:
 
-- **Domain Layer (`lib/domain`)**: Contains immutable core models (`SlotModel`, `VenueModel`, etc.) and abstract repository interfaces. Contains zero dependencies on Flutter or GetX.
-- **Data Layer (`lib/data`)**: Houses concrete repository implementations, API services, local Storage cache drivers, and the custom Dio client wrapper.
-- **Presentation Layer (`lib/presentation`)**: Contains views (`GetView`), bindings (`Bindings` to manage dependency injection), and controllers (`GetxController` representing the UI state machine).
-- **Shared Layer (`lib/shared`)**: General-purpose widgets (loaders, buttons, confirm modals).
+```
+lib/
+├── core/
+│   ├── constants/       # App themes, colors, and endpoints config
+│   └── network/         # Custom Dio HTTP client with connectivity exception mapping
+├── domain/
+│   ├── models/          # Immutable domain models (UserModel, SlotModel, etc.)
+│   └── repositories/    # Abstract repository interfaces (pure business logic contracts)
+├── data/
+│   ├── repositories/    # Concrete implementations of Domain Repository contracts
+│   └── services/        # Low-level network API client and persistent local storage
+├── presentation/
+│   ├── bindings/        # GetX bindings to manage dependency injection lifecycle
+│   ├── controllers/     # GetX controllers containing UI states, variables, and event logic
+│   └── views/           # Stateless views mapping elements to screen (zero calculations or business logic)
+└── shared/
+    ├── dialogs/         # Styled custom dialogs and snackbar alerts
+    ├── loaders/         # Custom loaders and progress indicator elements
+    └── widgets/         # App-wide reusable components (custom buttons, layouts)
+```
+
+### 1. Domain Layer (`lib/domain`)
+The core layer of the application. It contains pure Dart entities and abstract repository definitions. It is entirely free of any framework-specific dependencies (such as Flutter or GetX), meaning it can be easily unit-tested in isolation.
+- **Models:** Blueprint objects modeling backend records. Handles JSON serialization/deserialization and provides basic computed getters (e.g. `isExpired` checking if slot start time is before current time).
+- **Repositories:** Abstract interfaces establishing communication boundaries between presentation state machines and the data sources.
+
+### 2. Data Layer (`lib/data`)
+Implements the contracts defined in the Domain layer. It coordinates calls between remote web services and local caches.
+- **Services:** Includes `ApiService` (handling raw Dio client queries) and `StorageService` (caching JSON lists in SharedPreferences).
+- **Repositories Implementations:** Manages offline fallback fallback rules. For example, `BookingRepositoryImpl.getUserBookings` retrieves locally cached bookings instantly to render on view, then fires background re-syncs to populate the cache with updated network responses.
+
+### 3. Presentation Layer (`lib/presentation`)
+Contains MVC-like constructs built on top of GetX.
+- **Bindings:** Lazily injects ApiServices, Repositories, and Controllers to the navigation routes when screen views are pushed.
+- **Controllers:** Contains UI states (reactive `Rx` variables like lists, loading flags, error strings). Controls API integrations, timer loops (polling scheduler), user inputs, and navigation actions.
+- **Views:** Renders layouts. Widgets are kept "pure" of inline calculation logic—for example, the grid layout fetches properties directly from getters in the controller instead of containing inline filters or local calendar mapping logic.
+
+### 4. Core Layer (`lib/core`)
+Houses app-wide constants (routes, theme colors) and standard infrastructure extensions like error mapping interceptors.
 
 ---
 
@@ -77,3 +114,25 @@ For production releases, the app size has been optimized via the following confi
 1. **WebSockets Integration:** Instead of using 5-second HTTP polling, integrate WebSockets (using `socket.io-client` or similar) to broadcast instant status flips globally. This would eliminate network polling overhead and ensure true real-time synchronization.
 2. **Backend-Side Slot Validation:** Currently, the backend query returns all slots for a 24-hour window, forcing the frontend to filter out and mark past slots. Moving this logic to the backend would reduce payload size and clean up client-side checks.
 3. **Comprehensive Integration Testing:** Write automated integration tests mocking multiple clients booking the same slot simultaneously to verify conflict resolution and rollback flows.
+
+---
+
+## 🤖 Use of AI
+
+I used AI heavily to build this project. Specifically:
+- **Antigravity** was used for code generation, file modifications, running tests, and debugging in the workspace. (and to also generate this readme file :p)
+- **ChatGPT** was used to draft core logic details, resolve configuration problems, and generate development prompts.
+
+---
+
+## 💻 Process of Building via AI (similar flow for both backend & frontend)
+
+My build process involved the following structured steps:
+1. **Requirements Gathering:** Documented and organized software requirements specifications on my notepad.
+2. **Feature Selection:** Selected the precise set of features that I wanted to integrate.
+3. **Architecture Planning:** Sketched out the database schema, normalized entities, and mapped their logical relations.
+4. **AI Consultation:** Discussed and argued ideas with ChatGPT, asking it to look for architectural flaws, validate new ideas, and point out edge cases I might have missed.
+5. **Schema Setup:** Once finalized, generated a multi-phase implementation plan to deploy the Prisma schema, set up relations, and accepted the correct code edits generated by Antigravity in real-time.
+6. **API Flow Drafting & Prompting:** Discussed API endpoint structures and payloads with ChatGPT to save Antigravity context tokens. I then had ChatGPT generate structured prompts summarizing the designs, verified them, applied manual edits, and input them to Antigravity to perform code modifications.
+7. **Backend as Reference:** Once the backend server was verified, used it as a strict reference contract to write the frontend, ensuring the API parsing structure matches exactly.
+8. **Deployment:** Manually deployed the backend instance to Railway, configured env variables, and verified that everything connected successfully.
