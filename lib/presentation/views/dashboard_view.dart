@@ -335,8 +335,8 @@ class DashboardView extends GetView<DashboardController> {
         ? '${DateFormat('h:mm a').format(slot.startAt)} - ${DateFormat('h:mm a').format(slot.endAt)}'
         : 'Unknown Time';
 
-    final isExpired = slot?.startAt.isBefore(DateTime.now()) ?? false;
-    final isCancellable = slot != null && slot.startAt.difference(DateTime.now()).inHours >= 6;
+    final isExpired = slot?.isExpired ?? false;
+    final isCancellable = slot?.isCancellable ?? false;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),

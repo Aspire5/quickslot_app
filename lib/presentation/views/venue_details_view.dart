@@ -100,14 +100,8 @@ class VenueDetailsView extends GetView<VenueDetailsController> {
                       ),
                     ),
                     Obx(() {
-                      final count = controller.slots
-                          .where((s) {
-                            final rxSlot = controller.slotRxMap[s.id]?.value ?? s;
-                            return !rxSlot.isBooked && !rxSlot.startAt.isBefore(DateTime.now());
-                          })
-                          .length;
                       return Text(
-                        '$count Free',
+                        '${controller.availableSlotsCount} Free',
                         style: TextStyle(
                           fontSize: 12.sp,
                           fontWeight: FontWeight.bold,
@@ -269,7 +263,7 @@ class VenueDetailsView extends GetView<VenueDetailsController> {
       final startStr = DateFormat('h:mm a').format(rxSlot.startAt);
       final endStr = DateFormat('h:mm a').format(rxSlot.endAt);
 
-      final isPast = rxSlot.startAt.isBefore(DateTime.now());
+      final isPast = rxSlot.isExpired;
 
       if (rxSlot.isBooked || isPast) {
         final statusText = rxSlot.isBooked ? 'Booked' : 'Passed';

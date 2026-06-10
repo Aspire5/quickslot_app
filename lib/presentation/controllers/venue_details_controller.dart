@@ -53,6 +53,14 @@ class VenueDetailsController extends GetxController {
     });
   }
 
+  // Get reactive count of available future slots
+  int get availableSlotsCount {
+    return slots.where((s) {
+      final rxSlot = slotRxMap[s.id]?.value ?? s;
+      return !rxSlot.isBooked && !rxSlot.isExpired;
+    }).length;
+  }
+
   // Load slots for venue and date
   Future<void> loadSlots({bool isSilent = false}) async {
     if (venue.value == null) return;

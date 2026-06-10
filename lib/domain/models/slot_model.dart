@@ -37,6 +37,9 @@ class SlotModel {
     );
   }
 
+  bool get isExpired => startAt.isBefore(DateTime.now());
+  bool get isCancellable => startAt.difference(DateTime.now()).inHours >= 6;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
