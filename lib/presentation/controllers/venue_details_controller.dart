@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart' show Colors;
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -20,9 +21,11 @@ class VenueDetailsController extends GetxController {
   final Rx<DateTime> selectedDate = DateTime.now().obs;
   
   final RxList<SlotModel> slots = <SlotModel>[].obs;
+  final RxMap<String, Rx<SlotModel>> slotRxMap = <String, Rx<SlotModel>>{}.obs;
   final RxBool isLoading = false.obs;
   final RxBool isBooking = false.obs;
   final RxnString errorMessage = RxnString();
+  Timer? _pollingTimer;
 
   @override
   void onInit() {
@@ -30,10 +33,16 @@ class VenueDetailsController extends GetxController {
     // Fetch venue from arguments
     if (Get.arguments is VenueModel) {
       venue.value = Get.arguments as VenueModel;
-      loadSlots();
+      loadSlots().then((_) => startPolling());
     } else {
       errorMessage.value = 'Invalid venue arguments';
     }
+  }
+
+  @override
+  void onClose() {
+    stopPolling();
+    super.onClose();
   }
 
   // Generate date list: today + next 6 days (7 days total)
@@ -56,6 +65,15 @@ class VenueDetailsController extends GetxController {
     try {
       final list = await _venueRepository.getVenueSlots(venue.value!.id, dateStr);
       slots.assignAll(list);
+      
+      // Update Rx mappings
+      for (final slot in list) {
+        if (slotRxMap.containsKey(slot.id)) {
+          slotRxMap[slot.id]!.value = slot;
+        } else {
+          slotRxMap[slot.id] = slot.obs;
+        }
+      }
     } catch (e) {
       if (e is NoInternetException) {
         errorMessage.value = e.message;
@@ -124,10 +142,65 @@ class VenueDetailsController extends GetxController {
           title: 'Booking Failed',
           message: finalMsg,
           isError: true,
-        );
+          );
+        }
+      } finally {
+        isBooking.value = false;
       }
-    } finally {
-      isBooking.value = false;
     }
+
+  // Polling logic
+  void startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _pollSlots());
+  }
+
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  Future<void> _pollSlots() async {
+    if (venue.value == null || isLoading.value || isBooking.value) return;
+
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate.value);
+
+    try {
+      final list = await _venueRepository.getVenueSlots(venue.value!.id, dateStr);
+      
+      // Check if anything has changed
+      bool hasChanges = false;
+      if (list.length != slots.length) {
+        hasChanges = true;
+      } else {
+        for (int i = 0; i < list.length; i++) {
+          if (!_areSlotsEqual(list[i], slots[i])) {
+            hasChanges = true;
+            break;
+          }
+        }
+      }
+
+      if (hasChanges) {
+        slots.assignAll(list);
+        for (final slot in list) {
+          if (slotRxMap.containsKey(slot.id)) {
+            slotRxMap[slot.id]!.value = slot;
+          } else {
+            slotRxMap[slot.id] = slot.obs;
+          }
+        }
+      }
+    } catch (_) {
+      // Silently ignore polling errors to keep background updates smooth
+    }
+  }
+
+  bool _areSlotsEqual(SlotModel a, SlotModel b) {
+    return a.id == b.id &&
+        a.isBooked == b.isBooked &&
+        a.startAt == b.startAt &&
+        a.endAt == b.endAt &&
+        a.venueId == b.venueId;
   }
 }

@@ -259,112 +259,115 @@ class VenueDetailsView extends GetView<VenueDetailsController> {
   // Slot Card Builder
   // ──────────────────────────────────────────────────────────
   Widget _buildSlotCard(BuildContext context, SlotModel slot, bool isDarkMode) {
-    final startStr = DateFormat('h:mm a').format(slot.startAt);
-    final endStr = DateFormat('h:mm a').format(slot.endAt);
+    return Obx(() {
+      final rxSlot = controller.slotRxMap[slot.id]?.value ?? slot;
+      final startStr = DateFormat('h:mm a').format(rxSlot.startAt);
+      final endStr = DateFormat('h:mm a').format(rxSlot.endAt);
 
-    if (slot.isBooked) {
+      if (rxSlot.isBooked) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? AppColors.surfaceDark.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(
+              color: isDarkMode
+                  ? Colors.white.withValues(alpha: 0.03)
+                  : Colors.black.withValues(alpha: 0.03),
+              width: 1,
+            ),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '$startStr - $endStr',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w500,
+                  color: isDarkMode ? Colors.white30 : Colors.black26,
+                  decoration: TextDecoration.lineThrough,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 4.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Text(
+                  'Booked',
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white30 : Colors.black38,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
       return Container(
         decoration: BoxDecoration(
           color: isDarkMode
-              ? AppColors.surfaceDark.withValues(alpha: 0.3)
-              : Colors.black.withValues(alpha: 0.03),
+              ? AppColors.surfaceDark.withValues(alpha: 0.6)
+              : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(14.r),
           border: Border.all(
-            color: isDarkMode
-                ? Colors.white.withValues(alpha: 0.03)
-                : Colors.black.withValues(alpha: 0.03),
+            color: AppColors.primary.withValues(alpha: 0.15),
             width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '$startStr - $endStr',
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.white30 : Colors.black26,
-                decoration: TextDecoration.lineThrough,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 4.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Text(
-                'Booked',
-                style: TextStyle(
-                  fontSize: 10.sp,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white30 : Colors.black38,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14.r),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showBookingConfirmation(context, rxSlot, isDarkMode),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '$startStr - $endStr',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : AppColors.textPrimaryLight,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Available',
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDarkMode
-            ? AppColors.surfaceDark.withValues(alpha: 0.6)
-            : AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.15),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14.r),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _showBookingConfirmation(context, slot, isDarkMode),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '$startStr - $endStr',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? Colors.white : AppColors.textPrimaryLight,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 4.h),
-                  Text(
-                    'Available',
-                    style: TextStyle(
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   // ──────────────────────────────────────────────────────────
