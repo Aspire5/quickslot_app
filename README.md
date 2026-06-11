@@ -123,6 +123,19 @@ I used AI heavily to build this project. Specifically:
 - **Antigravity** was used for code generation, file modifications, running tests, and debugging in the workspace. (and to also generate this readme file :p)
 - **ChatGPT** was used to draft core logic details, resolve configuration problems, and generate development prompts.
 
+Things AI got wrong that I caught and fixed :- 
+
+On the frontend, I noticed a couple of inefficiencies in state management.
+
+First, the state updates were not optimized — on every API call, all slot widgets were being rebuilt, even if only a few had changed.
+I refactored this to update only the affected widgets, which improved performance and reduced unnecessary rebuilds.
+
+Secondly, for the “My Bookings” screen, the API was being called every time the user navigated to it.
+I optimized this by introducing a dirty flag mechanism — whenever a booking is successfully made, the screen is marked as dirty.
+Then, when the user revisits the screen, a background refresh is triggered with a non-blocking loader, instead of always fetching data upfront.
+
+This approach reduced redundant API calls while still keeping the UI up-to-date.
+
 ---
 
 ## 💻 Process of Building via AI (similar flow for both backend & frontend)
